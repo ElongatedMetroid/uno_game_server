@@ -6,5 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+lib_uno_game = { git = "https://github.com/NateNoNameSOFT/lib_uno_game" }
+
 colored = "2.0.0"
 rand = "0.8.5"
