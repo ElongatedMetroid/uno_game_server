@@ -1,8 +1,9 @@
-use std::{net::{TcpListener, TcpStream}, process, sync::{Arc, Mutex}};
+#![feature(backtrace)]
+use std::{net::{TcpListener, TcpStream}, process, sync::{Arc, Mutex}, backtrace::Backtrace};
 
 mod threadpool;
 
-use lib_uno_game::Game;
+use lib_uno_game::{Game, Packet};
 use threadpool::ThreadPool;
 
 fn main() {
@@ -28,11 +29,21 @@ fn main() {
     }
 }
 
-fn handle_client(stream: TcpStream, game: Arc<Mutex<Game>>, turn: usize) {
+fn handle_client(mut stream: TcpStream, game: Arc<Mutex<Game>>, turn: usize) {
     // Recieve initial data, like name
+    let packet = match Packet::read(&mut stream) {
+        Ok(packet) => packet,
+        
+        Err(error) => {
+            eprintln!("Error was most likely clients fault: {error}");
 
+            eprintln!("Backtrace: {}", Backtrace::capture());
 
-    player.set_turn(turn);
+            return;
+        }
+    };
+
+    println!("{:#?}", packet);
 
     // game.add_player(recieved.player);
 
