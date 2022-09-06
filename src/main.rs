@@ -1,4 +1,4 @@
-use std::{net::{TcpListener, TcpStream}, process, sync::{Arc, Mutex}};
+use std::{net::{TcpListener, TcpStream}, process, sync::{Arc, Mutex}, io::Write};
 
 mod threadpool;
 
@@ -49,22 +49,28 @@ fn handle_client(mut stream: TcpStream, game: Arc<Mutex<Game>>, turn: Arc<Mutex<
         }
     }.set_turn(*turn.lock().unwrap()); // Set the players turn
 
+    // Set players initial cards (Unwrap is safe here since we already know the player field exists)
+    packet.mut_recieved_from().as_mut().unwrap().set_cards((*game.lock().unwrap()).draw_hand());
+
     // Add player to the vector of players
     (*game.lock().unwrap()).add_player(&packet.recieved_from().as_ref().unwrap());
 
-    println!("{:#?}", game);
+    // Send id to client
+    stream.write_all(format!("{}\r\n", packet.recieved_from().as_ref().unwrap().id()).as_bytes()).unwrap();
 
-    // Send cards to player
-    packet.mut_recieved_from().as_mut().unwrap().set_cards((*game.lock().unwrap()).draw_hand());
-    packet.write(&mut stream).unwrap();
+    // Clear out the recieved from to save a bit of memory
+    *packet.mut_recieved_from() = None;
 
     loop {
         // Clone Arc<Mutex<Game>> in a Game, and send the Game structure to the client-
+        *packet.game_mut() = Some((*game.lock().unwrap()).clone());
+        // Write the packet
+        packet.write(&mut stream).unwrap();
 
         // Recieve card
         // (check if its valid, return Error response if not)
 
-        // Write game
+        // Write recieved game to Arc<Mutex<Game>>
         // Next player turn
     }
 }
