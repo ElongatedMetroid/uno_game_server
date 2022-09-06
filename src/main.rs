@@ -54,7 +54,10 @@ fn handle_client(mut stream: TcpStream, game: Arc<Mutex<Game>>, turn: Arc<Mutex<
 
     println!("{:#?}", game);
 
-    // When all players are ready send cards to each
+    // Send cards to player
+    packet.mut_recieved_from().as_mut().unwrap().set_cards((*game.lock().unwrap()).draw_hand());
+    packet.write(&mut stream).unwrap();
+
     loop {
         // Clone Arc<Mutex<Game>> in a Game, and send the Game structure to the client-
 
