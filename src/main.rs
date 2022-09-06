@@ -1,5 +1,4 @@
-#![feature(backtrace)]
-use std::{net::{TcpListener, TcpStream}, process, sync::{Arc, Mutex}, backtrace::Backtrace};
+use std::{net::{TcpListener, TcpStream}, process, sync::{Arc, Mutex}};
 
 mod threadpool;
 
@@ -14,47 +13,55 @@ fn main() {
 
     let pool = ThreadPool::build(5).unwrap();
 
-    let game = Game::new();
-    let game = Arc::new(Mutex::new(game));
+    let game = Arc::new(Mutex::new(Game::new()));
+    let turn = Arc::new(Mutex::new(0));
 
     for stream in listener.incoming() {
-        let mut turn = 0;
-        let game = Arc::clone(&game);
+        let game_clone = Arc::clone(&game);
+        let turn_clone = Arc::clone(&turn);
 
-        pool.execute(move || {
-            handle_client(stream.unwrap(), game, turn);
+        pool.execute(|| {
+            handle_client(stream.unwrap(), game_clone, turn_clone);
         });
-
-        turn += 1;
+        *turn.lock().unwrap() += 1;
     }
 }
 
-fn handle_client(mut stream: TcpStream, game: Arc<Mutex<Game>>, turn: usize) {
+fn handle_client(mut stream: TcpStream, game: Arc<Mutex<Game>>, turn: Arc<Mutex<usize>>) {
     // Recieve initial data, like name
-    let packet = match Packet::read(&mut stream) {
+    let mut packet = match Packet::read(&mut stream) {
         Ok(packet) => packet,
         
         Err(error) => {
             eprintln!("Error was most likely clients fault: {error}");
-
-            eprintln!("Backtrace: {}", Backtrace::capture());
-
+            // write error to stream
             return;
         }
     };
 
-    println!("{:#?}", packet);
+    // TODO: Do checks for Player struct, like if the name is already used
+    match packet.mut_recieved_from().as_mut() {
+        Some(player) => player,
+        None => {
+            eprintln!("Player not provided");
+            // write error to stream
+            return;
+        }
+    }.set_turn(*turn.lock().unwrap()); // Set the players turn
 
-    // game.add_player(recieved.player);
+    // Add player to the vector of players
+    (*game.lock().unwrap()).add_player(&packet.recieved_from().as_ref().unwrap());
+
+    println!("{:#?}", game);
 
     // When all players are ready send cards to each
-
     loop {
         // Clone Arc<Mutex<Game>> in a Game, and send the Game structure to the client-
 
         // Recieve card
-        // (check if its valid)
+        // (check if its valid, return Error response if not)
 
+        // Write game
         // Next player turn
     }
 }
