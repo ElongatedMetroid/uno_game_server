@@ -38,7 +38,7 @@ fn handle_client(mut stream: TcpStream, game: Arc<Mutex<Game>>, turn: Arc<Mutex<
             return;
         }
     };
-
+println!("READ 1");
     // TODO: Do checks for Player struct, like if the name is already used
     match packet.mut_recieved_from().as_mut() {
         Some(player) => player,
@@ -55,9 +55,11 @@ fn handle_client(mut stream: TcpStream, game: Arc<Mutex<Game>>, turn: Arc<Mutex<
     // Add player to the vector of players
     (*game.lock().unwrap()).add_player(&packet.recieved_from().as_ref().unwrap());
 
-    // Send id to client
-    stream.write_all(format!("{}\r\n", packet.recieved_from().as_ref().unwrap().id()).as_bytes()).unwrap();
+    let id = packet.recieved_from().as_ref().unwrap().id().clone();
 
+    // Send id to client
+    stream.write_all(format!("{}\r\n", id).as_bytes()).unwrap();
+println!("WRITE 1");
     // Clear out the recieved from to save a bit of memory
     *packet.mut_recieved_from() = None;
 
@@ -67,8 +69,22 @@ fn handle_client(mut stream: TcpStream, game: Arc<Mutex<Game>>, turn: Arc<Mutex<
         // Write the packet
         packet.write(&mut stream).unwrap();
 
-        // Recieve card
-        // (check if its valid, return Error response if not)
+        // Keep reading the card until we get a valid one
+        loop {
+            // Recieve card
+            packet = Packet::read(&mut stream).unwrap();
+            // if the card does not match
+            if !packet.game().as_ref().unwrap().card_matches(&packet.card().as_ref().unwrap()) {
+                packet.set_error(Some(String::from("That card does not work on the current card!")));
+                packet.write(&mut stream).unwrap();
+                continue;
+            }
+            
+            // Remove card from player
+            // set card to current card
+
+            break;
+        }
 
         // Write recieved game to Arc<Mutex<Game>>
         // Next player turn
